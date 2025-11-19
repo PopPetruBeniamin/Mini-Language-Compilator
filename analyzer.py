@@ -1,15 +1,13 @@
-# Analizor lexical complet comentat linie cu linie
-
-import re                        # Importam modulul regex pentru a putea identifica token-urile
-from typing import List, Tuple   # Pentru tipuri returnate clare
+import re                        # importing regex module to identify the tokens
+from typing import Tuple   # For clear returned types
 
 # -------------------------------------------------------------
-# 1. Codificarea atomilor (tokenurilor)
+# 1. Atoms codification (tokens)
 # -------------------------------------------------------------
-# Dicționarul asociază fiecărui tip de atom un cod numeric.
+# Dictionary that associate atoms with a numeric code
 TOKEN_CODES = {
-    "identificator": 0,
-    "constanta": 1,
+    "identifier": 0,
+    "constant": 1,
     "int": 2,
     "char": 3,
     "string": 4,
@@ -48,113 +46,113 @@ TOKEN_CODES = {
     "||": 37,
 }
 
-# Construim setul de cuvinte rezervate (adica tot ce nu e identif/const)
-RESERVED = {k for k in TOKEN_CODES if k not in ["identificator", "constanta"]}
+# Building the reserved words set (identifier/const are excluded)
+RESERVED = {k for k in TOKEN_CODES if k not in ["identifier", "constant"]}
 
 # -------------------------------------------------------------
-# 2. Regex pentru tokenizare
+# 2. Regex for tokens
 # -------------------------------------------------------------
-# Detectează: spații, operatori compuși, identificatori, numere, char-uri, stringuri și orice alt caracter
+# Detects: space, operators, identifiers, numbers, chars, strings and other characters
 TOKEN_REGEX = re.compile(
     r"\s+|==|!=|<=|>=|&&|\|\||[A-Za-z_][A-Za-z0-9_]*|[0-9]+|'[A-Za-z0-9]'|\"[A-Za-z0-9]*\"|.|\n"
 )
 
 # -------------------------------------------------------------
-# 3. Funcții de recunoaștere
+# 3. Recognition functions
 # -------------------------------------------------------------
 
 def is_identifier(token: str) -> bool:
-    """Verifică dacă un token este identificator valid și nu e cuvânt rezervat."""
+    """Verifies if a token is a valid identifier and is not a reserved word."""
     return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", token) is not None and token not in RESERVED
 
 
 def is_int_const(token: str) -> bool:
-    """Verifică dacă tokenul este un număr întreg."""
+    """Verifies if a token is an integer."""
     return re.fullmatch(r"[0-9]+", token) is not None
 
 
 def is_char_const(token: str) -> bool:
-    """Verifică dacă tokenul este un caracter de forma 'a'."""
+    """Verifies if a token is a character following the form 'a'."""
     return re.fullmatch(r"'[A-Za-z0-9]'", token) is not None
 
 
 def is_string_const(token: str) -> bool:
-    """Verifică dacă tokenul este un string de forma "abc"."""
+    """Verifies if a token is a string following the form "abc"."""
     return re.fullmatch(r'"[A-Za-z0-9]*"', token) is not None
 
 # -------------------------------------------------------------
-# 4. Clasificarea tokenului
+# 4. Tokens classification
 # -------------------------------------------------------------
 
 def classify(token: str) -> Tuple[int, str]:
     """
-    Returnează codul tokenului și valoarea lui pentru TS.
-    Dacă tokenul este identificator sau constantă → returnăm și valoarea.
-    Dacă este un cuvânt rezervat sau simbol → valoarea este None.
+    Returns the token code and its code for ST (Symbol Table).
+    If token is an identifier or a constant -> returns its value too
+    If token is a reserved world or a symbol -> its value is None
     """
     if token in RESERVED:
         return TOKEN_CODES[token], None
 
     if is_identifier(token):
-        return TOKEN_CODES["identificator"], token
+        return TOKEN_CODES["identifier"], token
 
     if is_int_const(token) or is_char_const(token) or is_string_const(token):
-        return TOKEN_CODES["constanta"], token
+        return TOKEN_CODES["constant"], token
 
     if token in TOKEN_CODES:
         return TOKEN_CODES[token], None
 
-    return -1, token   # Token invalid
+    return -1, token   # Invalid toker
 
 # -------------------------------------------------------------
-# 5. Analizorul lexical propriu-zis
+# 5. Lexical analyzer
 # -------------------------------------------------------------
 
 def lexical_analyze(source: str):
-    """Primește textul sursă și returnează TS și FIP."""
+    """The function receives the source code in text format and returns ST and PIF (Program Internal Form)."""
 
-    tokens = TOKEN_REGEX.findall(source)  # Extragem tokenurile brute
-    tokens = [t for t in tokens if not t.isspace()]  # Eliminăm spațiile
+    tokens = TOKEN_REGEX.findall(source)  # Extracting tokens
+    tokens = [t for t in tokens if not t.isspace()]  # Deleting spaces
 
-    TS = []  # Tabela de simboluri
-    FIP = [] # Forma internă a programului
+    ST = []  # Sybol table
+    PIF = [] # Program Internal Form
 
     for t in tokens:
         code, value = classify(t)
 
         if code == -1:
-            raise ValueError(f"Token nevalid: {t}")
+            raise ValueError(f"Invalid token: {t}")
 
-        if value is not None:  # identificator sau constantă
-            if value not in TS:
-                TS.append(value)   # Adăugăm în tabel doar dacă nu există deja
-            index = TS.index(value)  # Obținem poziția din TS
-            FIP.append((code, index))  # Adăugăm în FIP
+        if value is not None:  # identifier or constant
+            if value not in ST:
+                ST.append(value)   # We only add to the table if it does not already exist
+            index = ST.index(value)  # We get the position from ST
+            PIF.append((code, index))  # Adding to PIF
         else:
-            FIP.append((code, -1))  # Cuvinte rezervate și simboluri nu au index
+            PIF.append((code, -1))  # Reserved words and symbols have no index
 
-    return TS, FIP
+    return ST, PIF
 
 # -------------------------------------------------------------
-# 6. Funcția de analiză a unui fișier text
+# 6. The text file analysis function
 # -------------------------------------------------------------
 
 def analyze_file(filename: str):
     with open(filename, "r") as f:
         content = f.read()
 
-    TS, FIP = lexical_analyze(content)
+    ST, PIF = lexical_analyze(content)
 
-    print("TS (Tabela de simboluri):")
-    for i, s in enumerate(TS):
+    print("ST (Symbol table):")
+    for i, s in enumerate(ST):
         print(i, s)
 
-    print("\nFIP (Forma interna a programului):")
-    for entry in FIP:
+    print("\nPIF (Program Internal Form):")
+    for entry in PIF:
         print(entry)
 
 # -------------------------------------------------------------
-# 7. Punctul de intrare al programului
+# 7. Main
 # -------------------------------------------------------------
 
 if __name__ == "__main__":
