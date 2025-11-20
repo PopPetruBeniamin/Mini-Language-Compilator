@@ -1,5 +1,5 @@
 import re                        # importing regex module to identify the tokens
-from typing import Tuple   # For clear returned types
+from typing import Tuple, Optional, List  # For clear returned types
 
 # -------------------------------------------------------------
 # 1. Atoms codification (tokens)
@@ -65,16 +65,13 @@ def is_identifier(token: str) -> bool:
     """Verifies if a token is a valid identifier and is not a reserved word."""
     return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", token) is not None and token not in RESERVED
 
-
 def is_int_const(token: str) -> bool:
     """Verifies if a token is an integer."""
     return re.fullmatch(r"[0-9]+", token) is not None
 
-
 def is_char_const(token: str) -> bool:
     """Verifies if a token is a character following the form 'a'."""
     return re.fullmatch(r"'[A-Za-z0-9]'", token) is not None
-
 
 def is_string_const(token: str) -> bool:
     """Verifies if a token is a string following the form "abc"."""
@@ -105,16 +102,77 @@ def classify(token: str) -> Tuple[int, str]:
     return -1, token   # Invalid toker
 
 # -------------------------------------------------------------
-# 5. Lexical analyzer
+# 5. BST implementation for ST (lexicographically ordered)
 # -------------------------------------------------------------
+class STNode:
+    def __init__(self, key: str):
+        self.key = key
+        self.left: Optional['STNode'] = None
+        self.right: Optional['STNode'] = None
+        # opcional: id único de inserción si quieres índices estables
+        # self.insert_id = None
 
+class SymbolTableBST:
+    def __init__(self):
+        self.root: Optional[STNode] = None
+
+    def insert(self, key: str) -> STNode:
+        """Insert key if not present. Return the node containing key."""
+        if self.root is None:
+            self.root = STNode(key)
+            return self.root
+
+        cur = self.root
+        while True:
+            if key == cur.key:
+                return cur  # ya existe
+            elif key < cur.key:
+                if cur.left is None:
+                    cur.left = STNode(key)
+                    return cur.left
+                cur = cur.left
+            else:  # key > cur.key
+                if cur.right is None:
+                    cur.right = STNode(key)
+                    return cur.right
+                cur = cur.right
+
+    def find(self, key: str) -> Optional[STNode]:
+        cur = self.root
+        while cur is not None:
+            if key == cur.key:
+                return cur
+            elif key < cur.key:
+                cur = cur.left
+            else:
+                cur = cur.right
+        return None
+
+    def inorder_list(self) -> List[str]:
+        """Return list of keys in lexicographic order (inorder traversal)."""
+        result: List[str] = []
+        def inorder(node: Optional[STNode]):
+            if not node:
+                return
+            inorder(node.left)
+            result.append(node.key)
+            inorder(node.right)
+        inorder(self.root)
+        return result
+
+    def __contains__(self, key: str) -> bool:
+        return self.find(key) is not None
+
+# -------------------------------------------------------------
+# 6. Lexical analyzer
+# -------------------------------------------------------------
 def lexical_analyze(source: str):
     """The function receives the source code in text format and returns ST and PIF (Program Internal Form)."""
 
     tokens = TOKEN_REGEX.findall(source)  # Extracting tokens
     tokens = [t for t in tokens if not t.isspace()]  # Deleting spaces
 
-    ST = []  # Sybol table
+    st = SymbolTableBST()  # Sybol table
     PIF = [] # Program Internal Form
 
     for t in tokens:
@@ -124,27 +182,30 @@ def lexical_analyze(source: str):
             raise ValueError(f"Invalid token: {t}")
 
         if value is not None:  # identifier or constant
-            if value not in ST:
-                ST.append(value)   # We only add to the table if it does not already exist
-            index = ST.index(value)  # We get the position from ST
-            PIF.append((code, index))  # Adding to PIF
+            if value not in st:
+                st.insert(value)
+                # obtener la lista inorder y la posición (índice) lexicográfica
+            inorder_keys = st.inorder_list()
+            index = inorder_keys.index(value)  # índice lexicográfico actual
+            PIF.append((code, index))
         else:
             PIF.append((code, -1))  # Reserved words and symbols have no index
 
-    return ST, PIF
+    return st, PIF
 
 # -------------------------------------------------------------
-# 6. The text file analysis function
+# 7. The text file analysis function
 # -------------------------------------------------------------
 
 def analyze_file(filename: str):
     with open(filename, "r") as f:
         content = f.read()
 
-    ST, PIF = lexical_analyze(content)
+    st, PIF = lexical_analyze(content)
 
-    print("ST (Symbol table):")
-    for i, s in enumerate(ST):
+    print("ST (Symbol table) - lexicographic order:")
+    inorder_keys = st.inorder_list()
+    for i, s in enumerate(inorder_keys):
         print(i, s)
 
     print("\nPIF (Program Internal Form):")
@@ -152,7 +213,7 @@ def analyze_file(filename: str):
         print(entry)
 
 # -------------------------------------------------------------
-# 7. Main
+# 8. Main
 # -------------------------------------------------------------
 
 if __name__ == "__main__":

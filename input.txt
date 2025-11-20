@@ -1,8 +1,5 @@
 int main(){
 	int _a,_b,_c;
-	cin(_a);
-	cin(_b);
-	_c=_a+_b;
 	cout(_c);
     return 0;
 }
